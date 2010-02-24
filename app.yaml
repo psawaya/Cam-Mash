@@ -1,0 +1,14 @@
+application: cam-mash
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /static
+  static_dir: static
+
+- url: /flash
+  static_dir: flash
+
+- url: /.*
+  script: cam_mash.py

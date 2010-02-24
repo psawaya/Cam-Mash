@@ -1,0 +1,4 @@
+-swf stratus_test.swf
+-swf-version 10
+-main StratusTest
+-swf-header 700:600:40:FFEEDD
