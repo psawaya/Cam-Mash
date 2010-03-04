@@ -19,7 +19,6 @@ class StratusTest extends MovieClip {
     var vid:Video;
     
     var nc:NetConnection;
-    var ns:NetStream;
     
     var current:MovieClip;
     
@@ -67,6 +66,8 @@ class StratusTest extends MovieClip {
     
     function initCamera() {
         cam = Camera.getCamera(null); //default
+        
+        trace ("cam = " + cam);
     }
     
     function ncListen(event:NetStatusEvent) {
@@ -97,7 +98,12 @@ class StratusTest extends MovieClip {
         outgoing_ns.addEventListener(NetStatusEvent.NET_STATUS, function (event:NetStatusEvent) {
             trace("outgoing_ns event = " + event.info.code);
         });
-        outgoing_ns.attachCamera(cam);
+        
+        if (cam != null) 
+            outgoing_ns.attachCamera(cam);
+        else
+            trace ("No camera found.");
+    
         outgoing_ns.publish("media-caller");
         
         outgoing_ns.client = {
@@ -126,10 +132,6 @@ class StratusTest extends MovieClip {
         
         trace("publish listener_first");
         listener_ns.publish("listener_first");
-
-        var ns = this.ns;
-        var outgoing_ns = this.outgoing_ns;
-        var vid = this.vid;
         
         var listener_client = {
             onPeerConnect : onPeerConnect
@@ -161,7 +163,10 @@ class StratusTest extends MovieClip {
             trace("outgoing_ns event = " + event.info.code);
         });
         
-        outgoing_ns.attachCamera(cam);
+        if (cam == null)
+            trace ("No camera attached.");
+        else
+            outgoing_ns.attachCamera(cam);
         
         outgoing_ns.publish("media-callee");
         
@@ -201,10 +206,14 @@ class StratusTest extends MovieClip {
             //Publish
             cam.setQuality(350*1000,0);
             cam.setMode(vid_width,vid_height,30);
-            
-            
+
             cam.setLoopback(true);
-            vid.attachCamera(cam);
+            
+            
+            if (cam == null)
+                trace ("No camera found.");
+            else
+                vid.attachCamera(cam);
             
 /*            ns.attachCamera(cam);*/
             
