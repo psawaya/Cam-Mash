@@ -203,17 +203,19 @@ class StratusTest extends MovieClip {
         }
         else
         {
-            //Publish
-            cam.setQuality(350*1000,0);
-            cam.setMode(vid_width,vid_height,30);
-
-            cam.setLoopback(true);
-            
             
             if (cam == null)
                 trace ("No camera found.");
             else
-                vid.attachCamera(cam);
+            {
+                //Publish
+                cam.setQuality(350*1000,0);
+                cam.setMode(vid_width,vid_height,30);
+
+                cam.setLoopback(true);
+
+                vid.attachCamera(cam);   
+            }
             
 /*            ns.attachCamera(cam);*/
             
