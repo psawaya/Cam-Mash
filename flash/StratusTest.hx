@@ -11,10 +11,16 @@ import flash.media.Microphone;
 import flash.net.NetConnection;
 import flash.net.NetStream;
 import flash.events.Event;
+import flash.system.Security;
+import flash.system.SecurityPanel;
 
 class StratusTest extends MovieClip {
 
     
+  var mic:Microphone;
+
+
+
     var cam:Camera;
     var vid:Video;
     
@@ -69,6 +75,22 @@ class StratusTest extends MovieClip {
         
         trace ("cam = " + cam);
     }
+
+  function initMicrophone() {
+    //    mic = Microphone.getMicrophone(null); //default 
+    mic = Microphone.getMicrophone();
+    //    Security.showSettings(SecurityPanel.MICROPHONE);
+    mic.setLoopBack(true);
+
+    if (mic != null) {
+      mic.setUseEchoSuppression(true);
+      //      mic.addEventListener(ActivityEvent.ACTIVITY, activityHandler);
+      //mic.addEventListener(StatusEvent.STATUS, statusHandler);
+    }
+
+
+    trace ("mic = " + mic);
+  }
     
     function ncListen(event:NetStatusEvent) {
         switch (event.info.code) {
@@ -99,10 +121,16 @@ class StratusTest extends MovieClip {
             trace("outgoing_ns event = " + event.info.code);
         });
         
-        if (cam != null) 
-            outgoing_ns.attachCamera(cam);
-        else
-            trace ("No camera found.");
+        if (cam == null) 
+	  trace ("No camera found.");
+	else
+	  outgoing_ns.attachCamera(cam);
+
+	if (mic == null)
+	  trace ("No microphone attached.");
+	else 
+	  outgoing_ns.attachAudio(mic);
+
     
         outgoing_ns.publish("media-caller");
         
@@ -163,11 +191,16 @@ class StratusTest extends MovieClip {
             trace("outgoing_ns event = " + event.info.code);
         });
         
-        if (cam == null)
-            trace ("No camera attached.");
-        else
-            outgoing_ns.attachCamera(cam);
+        // if (cam == null)
+        //     trace ("No camera attached.");
+        // else
+        //     outgoing_ns.attachCamera(cam);
         
+	// if (mic == null)
+	//   trace ("No microphone attached.");
+	// else 
+	//   outgoing_ns.attachAudio(mic);
+
         outgoing_ns.publish("media-callee");
         
         incoming_ns.play("media-caller");
@@ -189,7 +222,9 @@ class StratusTest extends MovieClip {
         current.addChild(vid);
 
         trace("URL = " + currentURL);
-        
+
+        initMicrophone();
+
         initCamera();            
 
         if (!listener) {
