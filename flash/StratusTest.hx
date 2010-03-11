@@ -8,90 +8,128 @@ import flash.events.SecurityErrorEvent;
 import flash.media.Video;
 import flash.media.Camera;
 import flash.media.Microphone;
+
 import flash.net.NetConnection;
 import flash.net.NetStream;
 import flash.events.Event;
 import flash.system.Security;
 import flash.system.SecurityPanel;
+import flash.system.Capabilities;
 
-class StratusTest extends MovieClip {
+class StratusTest {
 
-    
-  var mic:Microphone;
+    static var RTMFP_SERVER = "rtmfp://stratus.adobe.com/";
+    static var DEV_KEY = "2eba02516e9fe7dca439d4be-55fd60f89cb3";
 
-
-
+    var mic:Microphone;
     var cam:Camera;
-    var vid:Video;
-    
+    var peerVideo:Video;
+    var localVideo:Video;
+
     var nc:NetConnection;
-    
+
     var current:MovieClip;
-    
+
     var listener_ns:NetStream;
     var incoming_ns:NetStream;
-    
+
     var control_ns:NetStream;
     var outgoing_ns:NetStream;
-    
+
     var listener:Bool;
-    
-    static function main(){        
-        var objInstance = new StratusTest();        
+
+    static function main(){
+        var objInstance = new StratusTest();
     }
 
     function new() {
-        super();
-
         current = flash.Lib.current;
-        
+
         ExternalInterface.addCallback("startAsListener",startAsListener);
         ExternalInterface.addCallback("startAsConnector",startAsConnector);
+
+        var vid_width:Int = cast(320*1.0,Int);
+        var vid_height:Int = cast(240*1.0,Int);
+
+        peerVideo = new Video(vid_width, vid_height);
+        peerVideo.x = 600-vid_width;
+        peerVideo.y = 0;
+
+        localVideo = new Video(vid_width, vid_height);
+        localVideo.x = 0;
+        localVideo.y = 480-vid_height;
+
+        current.addChild(peerVideo);
+        current.addChild(localVideo);
+
+        initMicrophone();
+
+        initCamera(vid_width, vid_height, 30);
+
+        if (cam != null)
+            /* Attach the loopback video feed so the client can see themself */
+            localVideo.attachCamera(cam);
     }
-    
+
     function startAsConnector() {
         trace("Starting as Connector");
         listener = false;
-        
-        initConnect();        
-    }
-    
-    function startAsListener() {
-        trace("Starting as Listener");
-        listener = true;
-        
+
         initConnect();
     }
-    
+
+    function startAsListener() {
+        trace("Starting as Listener");
+        trace("Capabilities: " + Capabilities.version);
+        listener = true;
+
+        initConnect();
+    }
+
     function initConnect() {
         trace("Starting NetConnection...");
         nc = new NetConnection();
         nc.addEventListener(NetStatusEvent.NET_STATUS,ncListen);
-        nc.connect("rtmfp://stratus.adobe.com/2eba02516e9fe7dca439d4be-55fd60f89cb3/");
-    }
-    
-    function initCamera() {
-        cam = Camera.getCamera(null); //default
-        
-        trace ("cam = " + cam);
+        nc.connect(RTMFP_SERVER + DEV_KEY);
     }
 
-  function initMicrophone() {
-    //    mic = Microphone.getMicrophone(null); //default 
-    mic = Microphone.getMicrophone();
-    //    Security.showSettings(SecurityPanel.MICROPHONE);
-    mic.setLoopBack(true);
+    function initCamera(width:Int, height:Int, fps:Int) {
+        // XXX: Getting the camera when it is already acquired by
+        // another application causes the feed to cut out on linux
+        cam = Camera.getCamera();
 
-    if (mic != null) {
-      mic.setUseEchoSuppression(true);
-      //      mic.addEventListener(ActivityEvent.ACTIVITY, activityHandler);
-      //mic.addEventListener(StatusEvent.STATUS, statusHandler);
+        trace ("cam = " + cam.name);
+        if (cam == null)
+            trace ("No camera found.");
+        else {
+            // Where does this bandwidth number come from?
+            cam.setQuality(350*1000,0); // Args are: bandwidth, quality
+            cam.setMode(width,height,fps);
+            // setLoopback specifies whether to compress the local feed (if true)
+            // as if it were being processed for transmission, or to display it
+            // uncompressed (false). Compression requires substantially more
+            // computation than just displaying the uncompressed stream so we
+            // should leave this set to false.
+            cam.setLoopback(false); 
+        }
     }
 
+    function initMicrophone() {
+        //    mic = Microphone.getMicrophone(null); //default
+        mic = Microphone.getMicrophone();
+        //    Security.showSettings(SecurityPanel.MICROPHONE);
+        mic.setLoopBack(true);
 
-    trace ("mic = " + mic);
-  }
-    
+        if (mic != null) {
+            mic.setUseEchoSuppression(true);
+            //      mic.addEventListener(ActivityEvent.ACTIVITY, activityHandler);
+            //mic.addEventListener(StatusEvent.STATUS, statusHandler);
+        }
+
+
+        trace ("mic = " + mic.name);
+    }
+
     function ncListen(event:NetStatusEvent) {
         switch (event.info.code) {
             case "NetConnection.Connect.Success":
@@ -99,164 +137,143 @@ class StratusTest extends MovieClip {
                 connectStream();
             case "NetStream.Play.StreamNotFound":
                 trace("Stream not found");
+            case "NetStream.Connect.Closed":
+                trace("Connection closed");
+                onHangup();
         }
     }
-    
-    function listenerHandler(event:NetStatusEvent) {
-        trace("listener_ns event = " + event.info.code);
-    }
-    
-    function controlHandler(event:NetStatusEvent) {
-        trace("control_ns event = " + event.info.code);
-    }
-    
+
     function connectToListenerStream(farID:String) {
         trace("connectToListenerStream");
         control_ns = new NetStream(nc, farID);
 		control_ns.addEventListener(NetStatusEvent.NET_STATUS, controlHandler);
-		control_ns.play("listener_first");
-		
-		outgoing_ns = new NetStream(nc, NetStream.DIRECT_CONNECTIONS);
-        outgoing_ns.addEventListener(NetStatusEvent.NET_STATUS, function (event:NetStatusEvent) {
-            trace("outgoing_ns event = " + event.info.code);
-        });
-        
-        if (cam == null) 
-	  trace ("No camera found.");
-	else
-	  outgoing_ns.attachCamera(cam);
+		control_ns.play("control");
 
-	if (mic == null)
-	  trace ("No microphone attached.");
-	else 
-	  outgoing_ns.attachAudio(mic);
-
-    
-        outgoing_ns.publish("media-caller");
-        
-        outgoing_ns.client = {
-          onPeerConnect : function(caller:NetStream) {
-              trace("Callee connecting to media stream: " + caller.farID);
-          }
-        };
-        
         incoming_ns = new NetStream(nc,farID);
-        incoming_ns.addEventListener(NetStatusEvent.NET_STATUS, function (event:NetStatusEvent) {
-            trace("incoming_ns event = " + event.info.code);
-        });
-        incoming_ns.play("media-callee");
-        
-        vid.attachNetStream(incoming_ns);
+        incoming_ns.addEventListener(NetStatusEvent.NET_STATUS, incomingHandler);
+
+        publishOutStream();
+
+        incoming_ns.play("media");
+
+        peerVideo.attachNetStream(incoming_ns);
     }
-        
+
     function publishListenerStream() {
         trace("publishListenerStream");
-        
+
         if (nc == null)
             trace("nc = null!");
-        
+
         listener_ns = new NetStream(nc,NetStream.DIRECT_CONNECTIONS);
         listener_ns.addEventListener(NetStatusEvent.NET_STATUS, listenerHandler);
-        
+
         trace("publish listener_first");
-        listener_ns.publish("listener_first");
-        
+        listener_ns.publish("control");
+
         var listener_client = {
             onPeerConnect : onPeerConnect
         };
-        
+
         listener_ns.client = listener_client;
-        
-        flash.Lib.trace("nearID = " + nc.nearID);
+
+        trace("nearID = " + nc.nearID);
         ExternalInterface.call("setNearID", nc.nearID);
     }
-    
+
     function onPeerConnect(caller:NetStream){
         trace("peerconnect");
 
         incoming_ns = new NetStream(nc,caller.farID);
-        
-        incoming_ns.addEventListener(NetStatusEvent.NET_STATUS, function (event:NetStatusEvent) {
-            trace("incoming_ns event = " + event.info.code);
-        });
-        
+        incoming_ns.addEventListener(NetStatusEvent.NET_STATUS, incomingHandler);
+
         incoming_ns.receiveAudio(true);
         incoming_ns.receiveVideo(true);
-        
-        vid.attachNetStream(incoming_ns);
-                
-        trace("create outgoing");
-        outgoing_ns = new NetStream(nc, NetStream.DIRECT_CONNECTIONS);
-        outgoing_ns.addEventListener(NetStatusEvent.NET_STATUS, function (event:NetStatusEvent) {
-            trace("outgoing_ns event = " + event.info.code);
-        });
-        
-        // if (cam == null)
-        //     trace ("No camera attached.");
-        // else
-        //     outgoing_ns.attachCamera(cam);
-        
-	// if (mic == null)
-	//   trace ("No microphone attached.");
-	// else 
-	//   outgoing_ns.attachAudio(mic);
 
-        outgoing_ns.publish("media-callee");
-        
-        incoming_ns.play("media-caller");
-        
-        vid.attachNetStream(incoming_ns);
+        publishOutStream();
+
+        incoming_ns.play("media");
+
+        peerVideo.attachNetStream(incoming_ns);
     }
-    
+
+    function publishOutStream() {
+        trace("Creating outgoing stream");
+        outgoing_ns = new NetStream(nc, NetStream.DIRECT_CONNECTIONS);
+        outgoing_ns.addEventListener(NetStatusEvent.NET_STATUS, outgoingHandler);
+
+        if (cam == null)
+            trace ("No camera found.");
+        else
+            outgoing_ns.attachCamera(cam);
+
+        if (mic == null)
+            trace ("No microphone found.");
+        else
+            outgoing_ns.attachAudio(mic);
+
+        outgoing_ns.client = {
+          onPeerConnect : function(caller:NetStream) {
+              trace("Received connection from " + caller.farID);
+          }
+        };
+
+        outgoing_ns.publish("media");
+    }
+
     function connectStream() {
         var currentURL = ExternalInterface.call('window.location.href.toString');
-        
-        var vid_width:Int = cast(320*1.3,Int);
-        var vid_height:Int = cast(240*1.3,Int);
-    
-        vid = new Video(vid_width,vid_height);
-
-        vid.x = 400;
-        vid.y = 300;
-
-        current.addChild(vid);
-
         trace("URL = " + currentURL);
 
-        initMicrophone();
-
-        initCamera();            
-
-        if (!listener) {
-            trace("getting video");
-            
-            var farID = currentURL.split("?")[1];
-            
-            trace("will connect to farID = " + farID);
-                        
-            connectToListenerStream(farID);
-        }
-        else
-        {
-            
-            if (cam == null)
-                trace ("No camera found.");
-            else
-            {
-                //Publish
-                cam.setQuality(350*1000,0);
-                cam.setMode(vid_width,vid_height,30);
-
-                cam.setLoopback(true);
-
-                vid.attachCamera(cam);   
-            }
-            
-/*            ns.attachCamera(cam);*/
-            
+        if (listener) { /* Client is publishing their stream to receive calls */
             trace("nc = " + nc);
             publishListenerStream();
+        } else { /* Client is initiating a call */
+            // XXX: Is there a URL parsing library so we can have additional query terms?
+            var farID = currentURL.split("?")[1];
+            trace("will connect to farID = " + farID);
+            connectToListenerStream(farID);
         }
+    }
+
+    function onHangup() {
+        peerVideo.clear();
+
+        if (incoming_ns != null) {
+            incoming_ns.close();
+		    incoming_ns.removeEventListener(NetStatusEvent.NET_STATUS, incomingHandler);
+        }
+
+        if (outgoing_ns != null) {
+            outgoing_ns.close();
+	        outgoing_ns.removeEventListener(NetStatusEvent.NET_STATUS, outgoingHandler);
+        }
+
+        if (control_ns != null) {
+            control_ns.close();
+	        control_ns.removeEventListener(NetStatusEvent.NET_STATUS, controlHandler);
+        }
+
+        incoming_ns = null;
+        outgoing_ns = null;
+        control_ns = null;
+    }
+
+    /* Handlers */
+    function listenerHandler(event:NetStatusEvent) {
+        trace("listener_ns event = " + event.info.code);
+    }
+
+    function controlHandler(event:NetStatusEvent) {
+        trace("control_ns event = " + event.info.code);
+    }
+
+    function incomingHandler(event:NetStatusEvent) {
+        trace("incoming_ns event = " + event.info.code);
+    }
+
+    function outgoingHandler(event:NetStatusEvent) {
+        trace("outgoing_ns event = " + event.info.code);
     }
 
 }
