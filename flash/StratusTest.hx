@@ -115,14 +115,12 @@ class StratusTest {
     }
 
     function initMicrophone() {
-        //    mic = Microphone.getMicrophone(null); //default
         mic = Microphone.getMicrophone();
-        //    Security.showSettings(SecurityPanel.MICROPHONE);
-        mic.setLoopBack(true);
+        mic.setLoopBack(false);
 
         if (mic != null) {
             mic.setUseEchoSuppression(true);
-            //      mic.addEventListener(ActivityEvent.ACTIVITY, activityHandler);
+            //mic.addEventListener(ActivityEvent.ACTIVITY, activityHandler);
             //mic.addEventListener(StatusEvent.STATUS, statusHandler);
         }
 
