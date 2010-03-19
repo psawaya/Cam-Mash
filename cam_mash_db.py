@@ -20,6 +20,9 @@ class CamMashDB:
         else:
             raise UserDoesNotExistException(user_id1)
     
+    def get_user_match(self,user_id):
+        pass
+    
     def user_exists(self,user_id):
         retval = self.db.select("users",dict(id=user_id),where="id = $id")
         
