@@ -5,9 +5,13 @@ import flash.display.MovieClip;
 
 import flash.events.NetStatusEvent;
 import flash.events.SecurityErrorEvent;
+import flash.events.KeyboardEvent;
+
 import flash.media.Video;
 import flash.media.Camera;
 import flash.media.Microphone;
+
+import flash.text.TextField;
 
 import flash.net.NetConnection;
 import flash.net.NetStream;
@@ -25,6 +29,9 @@ class StratusTest {
     var cam:Camera;
     var peerVideo:Video;
     var localVideo:Video;
+
+    var chatlog:TextField;
+    var chatinput:TextField;
 
     var nc:NetConnection;
 
@@ -61,6 +68,8 @@ class StratusTest {
 
         current.addChild(peerVideo);
         current.addChild(localVideo);
+
+        createChatFields();
 
         initMicrophone();
 
@@ -115,20 +124,63 @@ class StratusTest {
     }
 
     function initMicrophone() {
-        //    mic = Microphone.getMicrophone(null); //default
         mic = Microphone.getMicrophone();
-        //    Security.showSettings(SecurityPanel.MICROPHONE);
-        mic.setLoopBack(true);
+        mic.setLoopBack(false);
 
         if (mic != null) {
             mic.setUseEchoSuppression(true);
-            //      mic.addEventListener(ActivityEvent.ACTIVITY, activityHandler);
+            //mic.addEventListener(ActivityEvent.ACTIVITY, activityHandler);
             //mic.addEventListener(StatusEvent.STATUS, statusHandler);
         }
 
 
         trace ("mic = " + mic.name);
     }
+
+    function createChatFields() {
+        // XXX: Grab actual video dimensions somehow.. and come
+        //      up with a better way of laying things out. Flex?
+        var vid_width = 320;
+        var vid_height = 240;
+
+        // TODO: TextFormat objects
+        //       Scrollback for Chat Log
+
+        // Chat Log Field
+        chatlog = new TextField();
+        chatlog.x = vid_width + 2;
+        chatlog.y = vid_height;
+        chatlog.width = vid_width-5;
+        chatlog.height = vid_height - 30;
+        chatlog.border = true;
+        chatlog.borderColor = 0;
+        chatlog.background = true;
+        chatlog.backgroundColor = 0xEEEEEE;
+        chatlog.wordWrap = true;
+        chatlog.mouseWheelEnabled = true;
+        chatlog.type = flash.text.TextFieldType.DYNAMIC;
+        chatlog.multiline = true;
+
+        // Chat Input Field
+        chatinput = new TextField();
+        chatinput.x = vid_width + 2;
+        chatinput.y = 480 - 30;
+        chatinput.width = vid_width-5;
+        chatinput.height = 30;
+        chatinput.border = true;
+        chatinput.borderColor = 0;
+        chatinput.background = true;
+        chatinput.backgroundColor = 0xFFFFFF;
+        chatinput.type = flash.text.TextFieldType.INPUT;
+
+        // Add Fields to stage
+        current.addChild(chatlog);
+        current.addChild(chatinput);
+
+        // Add keyboard listener that makes enter key submit text
+        current.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown );
+    }
+
 
     function ncListen(event:NetStatusEvent) {
         switch (event.info.code) {
@@ -151,6 +203,10 @@ class StratusTest {
 
         incoming_ns = new NetStream(nc,farID);
         incoming_ns.addEventListener(NetStatusEvent.NET_STATUS, incomingHandler);
+
+        incoming_ns.client ={
+                    gotChatMessage:gotChatMessage
+                }
 
         publishOutStream();
 
@@ -187,8 +243,14 @@ class StratusTest {
         incoming_ns = new NetStream(nc,caller.farID);
         incoming_ns.addEventListener(NetStatusEvent.NET_STATUS, incomingHandler);
 
+        incoming_ns.client ={
+                    gotChatMessage:gotChatMessage
+                }
+
         incoming_ns.receiveAudio(true);
         incoming_ns.receiveVideo(true);
+
+        chatlog.text = "";
 
         publishOutStream();
 
@@ -259,21 +321,43 @@ class StratusTest {
         control_ns = null;
     }
 
+    function sendChatMessage() {
+        if (chatinput.text != "") {
+            if (outgoing_ns != null) {
+                outgoing_ns.send("gotChatMessage", chatinput.text);
+            }
+            chatlog.text += "\r You: " + chatinput.text;
+            chatinput.text = "";
+            chatlog.scrollV = chatlog.maxScrollV;
+        }
+    }
+
+    function gotChatMessage(str:String) {
+        chatlog.text += "\r Stranger: " + str;
+        chatlog.scrollV = chatlog.maxScrollV;
+    }
+
     /* Handlers */
     function listenerHandler(event:NetStatusEvent) {
-        trace("listener_ns event = " + event.info.code);
+        //trace("listener_ns event = " + event.info.code);
     }
 
     function controlHandler(event:NetStatusEvent) {
-        trace("control_ns event = " + event.info.code);
+        //trace("control_ns event = " + event.info.code);
     }
 
     function incomingHandler(event:NetStatusEvent) {
-        trace("incoming_ns event = " + event.info.code);
+        //trace("incoming_ns event = " + event.info.code);
     }
 
     function outgoingHandler(event:NetStatusEvent) {
-        trace("outgoing_ns event = " + event.info.code);
+        //trace("outgoing_ns event = " + event.info.code);
     }
 
+    function onKeyDown(event:KeyboardEvent) {
+        switch(event.keyCode){
+            case 13: // Return
+                sendChatMessage();
+        }
+    }
 }
