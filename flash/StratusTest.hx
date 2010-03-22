@@ -20,10 +20,16 @@ import flash.system.Security;
 import flash.system.SecurityPanel;
 import flash.system.Capabilities;
 
+import Whiteboard;
+import DrawEvent;
+
 class StratusTest {
 
     static var RTMFP_SERVER = "rtmfp://stratus.adobe.com/";
     static var DEV_KEY = "2eba02516e9fe7dca439d4be-55fd60f89cb3";
+    
+    static var SWF_WIDTH = 750;
+    static var SWF_HEIGHT = 550;
 
     var mic:Microphone;
     var cam:Camera;
@@ -44,6 +50,8 @@ class StratusTest {
     var outgoing_ns:NetStream;
 
     var listener:Bool;
+    
+    var whiteboard:Whiteboard;
 
     static function main(){
         var objInstance = new StratusTest();
@@ -59,15 +67,17 @@ class StratusTest {
         var vid_height:Int = cast(240*1.0,Int);
 
         peerVideo = new Video(vid_width, vid_height);
-        peerVideo.x = 600-vid_width;
+        peerVideo.x = 0; //SWF_WIDTH-vid_width;
         peerVideo.y = 0;
 
         localVideo = new Video(vid_width, vid_height);
         localVideo.x = 0;
-        localVideo.y = 480-vid_height;
+        localVideo.y = (SWF_HEIGHT-vid_height)-30;
 
         current.addChild(peerVideo);
         current.addChild(localVideo);
+
+        initWhiteboard();
 
         createChatFields();
 
@@ -78,6 +88,26 @@ class StratusTest {
         if (cam != null)
             /* Attach the loopback video feed so the client can see themself */
             localVideo.attachCamera(cam);
+    }
+    
+    function initWhiteboard() {
+        whiteboard = new Whiteboard(420,250);
+        
+        whiteboard.addEventListener(DrawEvent.DRAW, onWhiteboardDraw);
+        
+        current.addChild(whiteboard);
+
+        whiteboard.x = 320+5;
+        whiteboard.y = 10;
+    }
+    
+    function onWhiteboardDraw(e:DrawEvent) {        
+        if (outgoing_ns != null)        
+            outgoing_ns.send("gotWhiteboardUpdate", {
+               color : e.color,
+               penSize : e.penSize,
+               points : e.points 
+            });
     }
 
     function startAsConnector() {
@@ -140,6 +170,8 @@ class StratusTest {
     function createChatFields() {
         // XXX: Grab actual video dimensions somehow.. and come
         //      up with a better way of laying things out. Flex?
+        var chat_container = new MovieClip();
+        
         var vid_width = 320;
         var vid_height = 240;
 
@@ -148,10 +180,11 @@ class StratusTest {
 
         // Chat Log Field
         chatlog = new TextField();
-        chatlog.x = vid_width + 2;
-        chatlog.y = vid_height;
         chatlog.width = vid_width-5;
         chatlog.height = vid_height - 30;
+        
+        chatlog.x = vid_width + 2;
+        chatlog.y = vid_height;
         chatlog.border = true;
         chatlog.borderColor = 0;
         chatlog.background = true;
@@ -174,8 +207,13 @@ class StratusTest {
         chatinput.type = flash.text.TextFieldType.INPUT;
 
         // Add Fields to stage
-        current.addChild(chatlog);
-        current.addChild(chatinput);
+        chat_container.addChild(chatlog);
+        chat_container.addChild(chatinput);
+        
+        current.addChild(chat_container);
+        
+        chat_container.x = vid_width/3 - 100;
+        chat_container.y = vid_width/3 - 50;
 
         // Add keyboard listener that makes enter key submit text
         current.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown );
@@ -205,7 +243,8 @@ class StratusTest {
         incoming_ns.addEventListener(NetStatusEvent.NET_STATUS, incomingHandler);
 
         incoming_ns.client ={
-                    gotChatMessage:gotChatMessage
+                    gotChatMessage:gotChatMessage,
+                    gotWhiteboardUpdate:gotWhiteboardUpdate
                 }
 
         publishOutStream();
@@ -228,7 +267,7 @@ class StratusTest {
         listener_ns.publish("control");
 
         var listener_client = {
-            onPeerConnect : onPeerConnect
+            onPeerConnect : onPeerConnect,
         };
 
         listener_ns.client = listener_client;
@@ -244,7 +283,8 @@ class StratusTest {
         incoming_ns.addEventListener(NetStatusEvent.NET_STATUS, incomingHandler);
 
         incoming_ns.client ={
-                    gotChatMessage:gotChatMessage
+                    gotChatMessage:gotChatMessage,
+                    gotWhiteboardUpdate:gotWhiteboardUpdate
                 }
 
         incoming_ns.receiveAudio(true);
@@ -335,6 +375,11 @@ class StratusTest {
     function gotChatMessage(str:String) {
         chatlog.text += "\r Stranger: " + str;
         chatlog.scrollV = chatlog.maxScrollV;
+    }
+
+    function gotWhiteboardUpdate(obj:Dynamic) {
+        trace("gotWhiteboardUpdate");
+        whiteboard.updateWhiteboard(obj.penSize, obj.color, obj.points);
     }
 
     /* Handlers */
