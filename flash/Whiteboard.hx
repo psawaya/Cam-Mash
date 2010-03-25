@@ -39,8 +39,11 @@ class Whiteboard extends MovieClip {
         
         addChild(drawCanvas);
         
+        
+        //TODO: stop triggering these events when the user mouse events on a button
         addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
         addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+/*        addEventListener(MouseEvent.MOUSE_OUT, onMouseUp);*/
         
         createButtons();
     }
@@ -61,7 +64,7 @@ class Whiteboard extends MovieClip {
     }
     
     function createButtons() {
-        var colors = [0x000000, 0xffffff, 0xff0000, 0x00ff00, 0x0000ff,0x783030,0x483078,0x301818,0xD8D860,0xF0C060];
+        var colors = [0x000000, 0xffffff, 0xff0000, 0x00ff00, 0x0000ff,0xECD078,0xD95B43,0xC02942,0x542437,0x53777A];
         
         for (i in 0...colors.length) {
             var newButton = new Sprite();

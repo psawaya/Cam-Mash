@@ -36,8 +36,8 @@ class StratusTest {
     var peerVideo:Video;
     var localVideo:Video;
 
-    var chatlog:TextField;
-    var chatinput:TextField;
+/*    var chatlog:TextField;
+    var chatinput:TextField;*/
 
     var nc:NetConnection;
 
@@ -62,6 +62,8 @@ class StratusTest {
 
         ExternalInterface.addCallback("startAsListener",startAsListener);
         ExternalInterface.addCallback("startAsConnector",startAsConnector);
+        
+        ExternalInterface.addCallback("chatSend", sendChatMessageFromJS);
 
         var vid_width:Int = cast(320*1.0,Int);
         var vid_height:Int = cast(240*1.0,Int);
@@ -79,7 +81,7 @@ class StratusTest {
 
         initWhiteboard();
 
-        createChatFields();
+/*        createChatFields();*/
 
         initMicrophone();
 
@@ -91,13 +93,13 @@ class StratusTest {
     }
     
     function initWhiteboard() {
-        whiteboard = new Whiteboard(420,250);
+        whiteboard = new Whiteboard(400,500);
         
         whiteboard.addEventListener(DrawEvent.DRAW, onWhiteboardDraw);
         
         current.addChild(whiteboard);
 
-        whiteboard.x = 320+5;
+        whiteboard.x = 320+15;
         whiteboard.y = 10;
     }
     
@@ -167,57 +169,57 @@ class StratusTest {
         trace ("mic = " + mic.name);
     }
 
-    function createChatFields() {
-        // XXX: Grab actual video dimensions somehow.. and come
-        //      up with a better way of laying things out. Flex?
-        var chat_container = new MovieClip();
-        
-        var vid_width = 320;
-        var vid_height = 240;
+ /*   function createChatFields() {
+         // XXX: Grab actual video dimensions somehow.. and come
+         //      up with a better way of laying things out. Flex?
+         var chat_container = new MovieClip();
+         
+         var vid_width = 320;
+         var vid_height = 240;
 
-        // TODO: TextFormat objects
-        //       Scrollback for Chat Log
+         // TODO: TextFormat objects
+         //       Scrollback for Chat Log
 
-        // Chat Log Field
-        chatlog = new TextField();
-        chatlog.width = vid_width-5;
-        chatlog.height = vid_height - 30;
-        
-        chatlog.x = vid_width + 2;
-        chatlog.y = vid_height;
-        chatlog.border = true;
-        chatlog.borderColor = 0;
-        chatlog.background = true;
-        chatlog.backgroundColor = 0xEEEEEE;
-        chatlog.wordWrap = true;
-        chatlog.mouseWheelEnabled = true;
-        chatlog.type = flash.text.TextFieldType.DYNAMIC;
-        chatlog.multiline = true;
+         // Chat Log Field
+         chatlog = new TextField();
+         chatlog.width = vid_width-5;
+         chatlog.height = vid_height - 30;
+         
+         chatlog.x = vid_width + 2;
+         chatlog.y = vid_height;
+         chatlog.border = true;
+         chatlog.borderColor = 0;
+         chatlog.background = true;
+         chatlog.backgroundColor = 0xEEEEEE;
+         chatlog.wordWrap = true;
+         chatlog.mouseWheelEnabled = true;
+         chatlog.type = flash.text.TextFieldType.DYNAMIC;
+         chatlog.multiline = true;
 
-        // Chat Input Field
-        chatinput = new TextField();
-        chatinput.x = vid_width + 2;
-        chatinput.y = 480 - 30;
-        chatinput.width = vid_width-5;
-        chatinput.height = 30;
-        chatinput.border = true;
-        chatinput.borderColor = 0;
-        chatinput.background = true;
-        chatinput.backgroundColor = 0xFFFFFF;
-        chatinput.type = flash.text.TextFieldType.INPUT;
+         // Chat Input Field
+         chatinput = new TextField();
+         chatinput.x = vid_width + 2;
+         chatinput.y = 480 - 30;
+         chatinput.width = vid_width-5;
+         chatinput.height = 30;
+         chatinput.border = true;
+         chatinput.borderColor = 0;
+         chatinput.background = true;
+         chatinput.backgroundColor = 0xFFFFFF;
+         chatinput.type = flash.text.TextFieldType.INPUT;
 
-        // Add Fields to stage
-        chat_container.addChild(chatlog);
-        chat_container.addChild(chatinput);
-        
-        current.addChild(chat_container);
-        
-        chat_container.x = vid_width/3 - 100;
-        chat_container.y = vid_width/3 - 50;
+         // Add Fields to stage
+         chat_container.addChild(chatlog);
+         chat_container.addChild(chatinput);
+         
+         current.addChild(chat_container);
+         
+         chat_container.x = vid_width/3 - 100;
+         chat_container.y = vid_width/3 - 50;
 
-        // Add keyboard listener that makes enter key submit text
-        current.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown );
-    }
+         // Add keyboard listener that makes enter key submit text
+         current.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown );
+     }*/
 
 
     function ncListen(event:NetStatusEvent) {
@@ -290,7 +292,7 @@ class StratusTest {
         incoming_ns.receiveAudio(true);
         incoming_ns.receiveVideo(true);
 
-        chatlog.text = "";
+/*        chatlog.text = "";*/
 
         publishOutStream();
 
@@ -361,7 +363,7 @@ class StratusTest {
         control_ns = null;
     }
 
-    function sendChatMessage() {
+/*    function sendChatMessage() {
         if (chatinput.text != "") {
             if (outgoing_ns != null) {
                 outgoing_ns.send("gotChatMessage", chatinput.text);
@@ -370,11 +372,22 @@ class StratusTest {
             chatinput.text = "";
             chatlog.scrollV = chatlog.maxScrollV;
         }
+    }*/
+    
+    function sendChatMessageFromJS(text) {
+        if (text != "") {
+            if (outgoing_ns != null) {
+                trace("sending chat message " + text);
+                outgoing_ns.send("gotChatMessage", text);
+            }
+        }
     }
 
     function gotChatMessage(str:String) {
-        chatlog.text += "\r Stranger: " + str;
-        chatlog.scrollV = chatlog.maxScrollV;
+/*        chatlog.text += "\r Stranger: " + str;*/
+/*        chatlog.scrollV = chatlog.maxScrollV;*/
+        
+        ExternalInterface.call("getChatLine", str);
     }
 
     function gotWhiteboardUpdate(obj:Dynamic) {
@@ -402,7 +415,7 @@ class StratusTest {
     function onKeyDown(event:KeyboardEvent) {
         switch(event.keyCode){
             case 13: // Return
-                sendChatMessage();
+                return;//sendChatMessage();
         }
     }
 }

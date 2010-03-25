@@ -5,9 +5,15 @@ from models import *
 
 urls = (
   '/', 'index',
+  '/listen', 'listen',
+  '/call', 'call',
 )
 
-render = web.template.render('templates', base='base')
+def render_template(name, *args, **kw): 
+    #TODO: find better way to embed templates by name
+    return getattr(web.template.render("templates", globals={"render_template": render_template}),name)()
+
+render = web.template.render("templates", base='base', globals={"render_template": render_template})
 
 class index:
     def GET(self):
@@ -21,17 +27,16 @@ class index:
         # person.name = i.name
         # person.put()
         return web.seeother('/list')
-# 
-# class listen:
-#     def GET(self):
-#         # return "Error."
-#         return render.listen()
-#     def POST(self):
-#         return render.listen()
-# 
-# class call:
-#     def GET(self):
-#         return render.call()
+
+class listen:
+    def GET(self):
+        return render.listen()
+    # def POST(self):
+    #     return render.listen()
+
+class call:
+    def GET(self):
+        return render.call()
 # 
 # class list:
 #     def GET(self):
